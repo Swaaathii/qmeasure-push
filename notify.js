@@ -115,6 +115,9 @@ async function main(){
       data: { title: j.title, body: j.body, tag: j.tag, url: j.url || './' },
       webpush: { headers: { Urgency: 'high', TTL: '86400' } }
     });
+    res.responses.forEach((r, i) => {
+      if(!r.success) console.log('  FAILED token', (i + 1) + '/' + u.tokens.length, '->', r.error && r.error.code, '|', r.error && r.error.message);
+    });
     const dead = [];
     res.responses.forEach((r, i) => {
       if(!r.success && r.error && /registration-token-not-registered|invalid-argument|invalid-registration/.test(r.error.code || '')) dead.push(u.tokens[i]);
@@ -125,7 +128,7 @@ async function main(){
       await COL.doc(u.docId).set({ value: JSON.stringify(u.rec) });
     }
     sent[j.sentKey] = now;
-    console.log('Sent to', j.name, '-', j.title, '(ok:', res.successCount + ')');
+    console.log((res.successCount ? 'Delivered to FCM for ' : 'NOT delivered to ') + j.name, '-', j.title, '(ok:', res.successCount, 'failed:', res.failureCount + ')');
   }
 
   // Prune old dedupe entries and save
