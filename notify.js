@@ -40,6 +40,13 @@ async function main(){
 
   const jobs = []; // { name, title, body, tag, url, sentKey }
 
+  // Manual test: Actions -> Push reminders -> Run workflow -> tick "Send a test notification"
+  if(process.env.TEST_PUSH === '1'){
+    for(const name of Object.keys(users)){
+      jobs.push({ name, title: '✅ QMeasure test notification', body: 'Background notifications are working on this device.', tag: 'test', sentKey: 'test:' + name + ':' + now });
+    }
+  }
+
   // 1) Checkout time (9h worked and still checked in)
   for(const name of Object.keys(users)){
     const recs = att.filter(r => r.name === name && r.timestamp >= dayStart).sort((a,b) => a.timestamp - b.timestamp);
