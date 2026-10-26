@@ -110,7 +110,7 @@ async function main(){
   const all = jobs.filter(j => !sent[j.sentKey]).concat(repeatJobs);
   for(const j of all){
     const u = users[j.name];
-    const res = await admin.messaging().sendEachForTokens({
+    const res = await admin.messaging().sendEachForMulticast({
       tokens: u.tokens,
       data: { title: j.title, body: j.body, tag: j.tag, url: j.url || './' },
       webpush: { headers: { Urgency: 'high', TTL: '86400' } }
