@@ -23,17 +23,20 @@ async function main(){
     read('attendance-log', []), read('crm-leads', []), read('crm-visits', []), read('push-sent', {})
   ]);
 
-  // Load every employee's push tokens
-  const snap = await COL.where(admin.firestore.FieldPath.documentId(), '>=', 'push-')
-                        .where(admin.firestore.FieldPath.documentId(), '<', 'push.').get();
+  // Load every employee's push tokens (list docs, keep ids starting with "push-")
+  const refs = (await COL.listDocuments()).filter(r => r.id.startsWith('push-') && r.id !== 'push-sent');
+  const snaps = refs.length ? await db.getAll(...refs) : [];
   const users = {}; // name -> { docId, tokens, delay }
-  snap.forEach(doc => {
-    if(doc.id === 'push-sent') return;
+  snaps.forEach(doc => {
+    if(!doc.exists) return;
     try {
       const rec = JSON.parse(doc.data().value);
       if(rec && rec.name && (rec.tokens || []).length) users[rec.name] = { docId: doc.id, tokens: rec.tokens, delay: Number(rec.delay) || 30, rec };
-    } catch(e){}
+      else console.log('Skipped', doc.id, '- missing name or tokens');
+    } catch(e){ console.log('Could not read', doc.id); }
   });
+  console.log('Time (IST):', today, hourIST + 'h | records:', att.length, 'leads:', leads.length, 'visits:', visits.length);
+  console.log('Registered devices for:', Object.keys(users).join(', ') || 'NONE');
 
   const jobs = []; // { name, title, body, tag, url, sentKey }
 
@@ -54,7 +57,7 @@ async function main(){
   // 2) Follow-up due + 3) Revisit due
   for(const lead of leads){
     const owner = lead.createdBy;
-    if(!owner || !users[owner]) continue;
+    if(!owner || !users[owner]){ if(lead.followUpDate || lead.revisitAt) console.log('Lead skipped (owner has no registered device):', lead.company || lead.name, '| owner =', JSON.stringify(owner)); continue; }
     const status = lead.status || ({ Won: 'Closed-Won', Lost: 'Closed-Lost' }[lead.stage] || lead.stage || 'New');
     const closed = ['Closed-Won', 'Closed-Lost'].includes(status);
     const label = lead.company || lead.name || 'a lead';
