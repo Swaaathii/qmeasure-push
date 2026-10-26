@@ -120,7 +120,7 @@ async function main(){
     });
     const dead = [];
     res.responses.forEach((r, i) => {
-      if(!r.success && r.error && /registration-token-not-registered|invalid-argument|invalid-registration/.test(r.error.code || '')) dead.push(u.tokens[i]);
+      if(!r.success && r.error && /registration-token-not-registered|invalid-registration-token/.test(r.error.code || '')) dead.push(u.tokens[i]);
     });
     if(dead.length){
       u.rec.tokens = u.rec.tokens.filter(t => !dead.includes(t));
