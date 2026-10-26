@@ -3,6 +3,11 @@ on:
   schedule:
     - cron: '*/5 * * * *'
   workflow_dispatch:
+    inputs:
+      test:
+        description: 'Send a test notification to every registered device'
+        type: boolean
+        default: false
 concurrency:
   group: push-reminders
   cancel-in-progress: false
@@ -18,3 +23,4 @@ jobs:
       - run: node notify.js
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          TEST_PUSH: ${{ inputs.test && '1' || '' }}
