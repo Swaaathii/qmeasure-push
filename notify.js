@@ -43,7 +43,7 @@ async function main(){
   // Manual test: Actions -> Push reminders -> Run workflow -> tick "Send a test notification"
   if(process.env.TEST_PUSH === '1'){
     for(const name of Object.keys(users)){
-      jobs.push({ name, title: '✅ QMeasure test notification', body: 'Background notifications are working on this device.', tag: 'test', sentKey: 'test:' + name + ':' + now });
+      jobs.push({ name, title: '✅ QMeasure test notification', body: 'Background notifications are working on this device.', tag: 'test-' + now, sentKey: 'test:' + name + ':' + now });
     }
   }
 
@@ -56,9 +56,12 @@ async function main(){
       if(r.type === 'in') openIn = r.timestamp;
       else if(r.type === 'out' && openIn !== null){ ms += r.timestamp - openIn; openIn = null; }
     });
-    if(openIn === null) continue;               // already checked out
+    if(openIn === null){ console.log('Checkout check:', name, '- already checked out'); continue; }
     ms += now - openIn;
-    if(ms >= TARGET_MS) jobs.push({ name, title: '⏰ Time to check out', body: "You've completed your 9 working hours. Don't forget to check out.", tag: 'checkout', sentKey: 'checkout:' + name + ':' + today });
+    const key = 'checkout:' + name + ':' + today;
+    console.log('Checkout check:', name, '- worked', (ms / 3600000).toFixed(2) + 'h', ms >= TARGET_MS ? (sent[key] ? '(already sent today)' : '(DUE)') : '(not yet)');
+    // Date in the tag: yesterday's notification (still on screen) must not silently replace today's.
+    if(ms >= TARGET_MS) jobs.push({ name, title: '⏰ Time to check out', body: "You've completed your 9 working hours. Don't forget to check out.", tag: 'checkout-' + today, sentKey: key });
   }
 
   // 2) Follow-up due + 3) Revisit due
@@ -108,6 +111,7 @@ async function main(){
 
   // Send
   const all = jobs.filter(j => !sent[j.sentKey]).concat(repeatJobs);
+  let marked = 0;
   for(const j of all){
     const u = users[j.name];
     const res = await admin.messaging().sendEachForMulticast({
@@ -127,13 +131,14 @@ async function main(){
       u.tokens = u.rec.tokens;
       await COL.doc(u.docId).set({ value: JSON.stringify(u.rec) });
     }
-    sent[j.sentKey] = now;
+    // Only mark as sent if at least one device received it, so a failed send is retried in 5 min.
+    if(res.successCount > 0){ sent[j.sentKey] = now; marked++; }
     console.log((res.successCount ? 'Delivered to FCM for ' : 'NOT delivered to ') + j.name, '-', j.title, '(ok:', res.successCount, 'failed:', res.failureCount + ')');
   }
 
   // Prune old dedupe entries and save
   Object.keys(sent).forEach(k => { if(now - sent[k] > 3 * 86400000) delete sent[k]; });
-  if(all.length) await COL.doc('push-sent').set({ value: JSON.stringify(sent) });
+  if(marked) await COL.doc('push-sent').set({ value: JSON.stringify(sent) });
   console.log('Done. Notifications sent:', all.length);
 }
 
