@@ -4,7 +4,7 @@ const db = admin.firestore();
 const COL = db.collection('qmeasure_data');
 
 const IST = 330 * 60000;              // India time (UTC+5:30)
-const TARGET_MS = 2 * 60000;        // 9-hour workday
+const TARGET_MS = 9 * 3600000;        // 9-hour workday
 const FOLLOWUP_HOUR = 9;              // follow-up alerts start at 9 AM IST
 const now = Date.now();
 const ist = new Date(now + IST);
